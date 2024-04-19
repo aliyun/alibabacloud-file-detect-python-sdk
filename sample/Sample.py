@@ -11,7 +11,6 @@ from alibabacloud_filedetect.IDetectResultCallback import IDetectResultCallback
 from alibabacloud_filedetect.ERR_CODE import ERR_CODE
 from alibabacloud_filedetect.DetectResult import DetectResult
 
-
 class Sample(object):
     
     def __init__(self):
@@ -38,9 +37,8 @@ class Sample(object):
             if wait_if_queuefull is False:
                 break
             detector.waitQueueAvailable(-1)
-        
         return result
-    
+
 
     """
     异步检测文件接口
@@ -69,8 +67,62 @@ class Sample(object):
             if wait_if_queuefull is False:
                 break
             detector.waitQueueAvailable(-1)
-        
-        return result   
+        return result
+    
+
+    """
+    同步检测URL文件接口
+    @param detector 检测器对象
+	@param url 待检测的文件URL
+	@param md5 待检测的文件md5
+	@param timeout_ms 设置超时时间，单位为毫秒
+	@param wait_if_queuefull 如果检测队列满了，false表示不等待直接返回错误，true表示一直等待直到队列不满时
+    """
+    def detectUrlSync(self, detector, url, md5, timeout_ms, wait_if_queuefull):
+        if detector is None or url is None or md5 is None:
+            return None
+        result = None
+        while True:
+            result = detector.detectUrlSync(url, md5, timeout_ms)
+            if result is None:
+                break
+            if result.error_code != ERR_CODE.ERR_DETECT_QUEUE_FULL:
+                break
+            if wait_if_queuefull is False:
+                break
+            detector.waitQueueAvailable(-1)
+        return result
+
+
+    """
+    异步检测URL文件接口
+	@param detector 检测器对象
+	@param url 待检测的文件URL
+	@param md5 待检测的文件md5
+	@param timeout_ms 设置超时时间，单位为毫秒
+	@param wait_if_queuefull 如果检测队列满了，false表示不等待直接返回错误，true表示一直等待直到队列不满时
+	@param callback 结果回调函数
+    """
+    def detectUrl(self, detector, url, md5, timeout_ms, wait_if_queuefull, callback):
+        if detector is None or url is None or md5 is None or callback is None:
+            return ERR_CODE.ERR_INIT.value
+        result = ERR_CODE.ERR_INIT.value
+        if wait_if_queuefull:
+            real_callback = callback
+            class AsyncTaskCallback(IDetectResultCallback):
+                def onScanResult(self, seq, file_path, callback_res):
+                    if callback_res.error_code == ERR_CODE.ERR_DETECT_QUEUE_FULL:
+                        return
+                    real_callback.onScanResult(seq, file_path, callback_res)
+            callback = AsyncTaskCallback()
+        while True:
+            result = detector.detectUrl(url, md5, timeout_ms, callback)
+            if result != ERR_CODE.ERR_DETECT_QUEUE_FULL.value:
+                break
+            if wait_if_queuefull is False:
+                break
+            detector.waitQueueAvailable(-1)
+        return result
 
 
     """
@@ -80,21 +132,41 @@ class Sample(object):
     """
     @staticmethod
     def formatDetectResult(result):
+        msg = ""
         if result.isSucc():
             info = result.getDetectResultInfo()
-            msg = "[DETECT RESULT] [SUCCEED] md5: {}, time: {}, result: {}, score: {}".format(info.md5,
-                info.time, info.result, info.score)
-            vinfo = info.getVirusInfo()
-            if vinfo is not None:
-                msg += ", virus_type: {}, ext_info: {}".format(vinfo.virus_type, vinfo.ext_info)
-            return msg
-        
-        info = result.getErrorInfo()
-        msg = "[DETECT RESULT] [FAIL] md5: {}, time: {}, error_code: {}, error_message: {}".format(info.md5,
-            info.time, info.error_code, info.error_string)
+            msg = "[DETECT RESULT] [SUCCEED] {}".format(Sample.formatDetectResultInfo(info))
+            if info.compresslist is not None:
+                idx = 1
+                for comp_res in info.compresslist:
+                    msg += "\n\t\t\t [COMPRESS FILE] [IDX:{}] {}".format(idx, Sample.formatCompressFileDetectResultInfo(comp_res))
+                    idx += 1
+        else:
+            info = result.getErrorInfo()
+            msg = "[DETECT RESULT] [FAIL] md5: {}, time: {}, error_code: {}, error_message: {}".format(info.md5,
+                info.time, info.error_code.name, info.error_string)
         return msg
-        
-        
+
+
+    @staticmethod
+    def formatDetectResultInfo(info):
+        msg = "MD5: {}, TIME: {}, RESULT: {}, SCORE: {}".format(info.md5, info.time, info.result.name, info.score)
+        if info.compresslist is not None:
+            msg += ", COMPRESS_FILES: {}".format(len(info.compresslist))
+        vinfo = info.getVirusInfo()
+        if vinfo is not None:
+            msg += ", VIRUS_TYPE: {}, EXT_INFO: {}".format(vinfo.virus_type, vinfo.ext_info)
+        return msg
+
+
+    @staticmethod
+    def formatCompressFileDetectResultInfo(info):
+        msg = "PATH: {}, \t\t RESULT: {}, SCORE: {}".format(info.path, info.result.name, info.score)
+        vinfo = info.getVirusInfo()
+        if vinfo is not None:
+            msg += ", VIRUS_TYPE: {}, EXT_INFO: {}".format(vinfo.virus_type, vinfo.ext_info)
+        return msg
+
 
     """
     同步检测目录或文件
@@ -112,13 +184,11 @@ class Sample(object):
                 self.detectDirOrFileSync(detector, sub_path, timeout_ms, result_map)
             return
         
-        elif os.path.isfile(abs_path):
-            print("[detectFileSync] [BEGIN] queueSize: {}, path: {}, timeout: {}".format(
-                detector.getQueueSize(), abs_path, timeout_ms))
-            res = self.detectFileSync(detector, abs_path, timeout_ms, True)
-            print("                 [ END ] {}".format(self.formatDetectResult(res)))
-            result_map[abs_path] = res
-        
+        print("[detectFileSync] [BEGIN] queueSize: {}, path: {}, timeout: {}".format(
+            detector.getQueueSize(), abs_path, timeout_ms))
+        res = self.detectFileSync(detector, abs_path, timeout_ms, True)
+        print("                 [ END ] {}".format(Sample.formatDetectResult(res)))
+        result_map[abs_path] = res
         return
 
 
@@ -138,12 +208,10 @@ class Sample(object):
                 self.detectDirOrFile(detector, sub_path, timeout_ms, callback)
             return
         
-        elif os.path.isfile(abs_path):
-            seq = self.detectFile(detector, abs_path, timeout_ms, True, callback)
-            print("[detectFile] [BEGIN] seq: {}, queueSize: {}, path: {}, timeout: {}".format(
-                seq, detector.getQueueSize(), abs_path, timeout_ms))
-            
-        return     
+        seq = self.detectFile(detector, abs_path, timeout_ms, True, callback)
+        print("[detectFile] [BEGIN] seq: {}, queueSize: {}, path: {}, timeout: {}".format(
+            seq, detector.getQueueSize(), abs_path, timeout_ms))   
+        return
 
     
     """
@@ -165,12 +233,11 @@ class Sample(object):
                             detector.getQueueSize(), Sample.formatDetectResult(callback_res)))
                         result_map[file_path] = callback_res
                 self.detectDirOrFile(detector, path, detect_timeout_ms, AsyncTaskCallback())
-
-                # 等待任务完成
+                # 等待任务执行完成
                 detector.waitQueueEmpty(-1)
             
             used_time_ms = (time.time() - start_time) * 1000 
-            print("[SCAN] [ END ] used_time: {}, files: {}".format(used_time_ms, len(result_map)))
+            print("[SCAN] [ END ] used_time: {}, files: {}".format(int(used_time_ms), len(result_map)))
             
             failed_count = 0
             white_count = 0
@@ -192,20 +259,38 @@ class Sample(object):
 
 
     def main(self):
+
         # 获取检测器实例
         detector = OpenAPIDetector.get_instance()
 
         # 初始化
         init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>")
-        print("INIT RET: {}".format(init_ret))
+        print("INIT RET: {}".format(init_ret.name))
 
-        # 自定义扫描参数
-        is_sync_scan = False # 是异步检测还是同步检测。异步检测性能更好。False表示异步检测
-        timeout_ms = 120000 # 单个样本检测时间，单位为毫秒
-        path = "./test" # 待扫描的文件或目录
+        # 设置解压缩参数(可选，默认不解压压缩包)
+        decompress = True # 是否识别压缩文件并解压，默认为false
+        decompressMaxLayer = 5 # 最大解压层数，decompress参数为true时生效
+        decompressMaxFileCount = 1000 # 最大解压文件数，decompress参数为true时生效
+        initdec_ret = detector.initDecompress(decompress, decompressMaxLayer, decompressMaxFileCount)
+        print("INIT_DECOMPRESS RET: {}".format(initdec_ret.name))
 
-        # 启动扫描，直到扫描结束
-        self.scan(detector, path, timeout_ms, is_sync_scan)
+        if True:
+            # 示例用法1：扫描本地目录或文件
+            is_sync_scan = False # 是异步检测还是同步检测。异步检测性能更好。False表示异步检测
+            timeout_ms = 500000 # 单个样本检测时间，单位为毫秒
+            path = "test.bin" # 待扫描的文件或目录
+            # 启动扫描，直到扫描结束
+            self.scan(detector, path, timeout_ms, is_sync_scan)
+
+        if True:
+            # 示例用法2：扫描URL文件
+            timeout_ms = 500000
+            url = "https://xxxxxxxx.oss-cn-hangzhou-1.aliyuncs.com/xxxxx/xxxxxxxxxxxxxx?Expires=1671448125&OSSAccessKeyId=xxx" # 待扫描的URL文件
+            md5 = "a767ffc59d93125c7505b6e21d000000"
+            # 同步扫描。如果需要异步扫描，调用detectUrl接口
+            print("[detectUrlSync] [BEGIN] URL: {}, MD5: {}, TIMEOUT: {}".format(url, md5, timeout_ms))
+            result = self.detectUrlSync(detector, url, md5, timeout_ms, True)
+            print("[detectUrlSync] [ END ] {}".format(Sample.formatDetectResult(result)))
 
         # 反初始化
         print("Over.")

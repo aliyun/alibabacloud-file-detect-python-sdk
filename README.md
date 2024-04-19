@@ -28,7 +28,7 @@ pip install alibabacloud_filedetect
 
 ## Changelog
 
-Detailed changes for each release are documented in the [release notes](./ChangeLog.md).
+Detailed changes for each release are documented in the [release notes](https://github.com/aliyun/alibabacloud-file-detect-python-sdk/blob/master/ChangeLog.md).
 
 ## References
 
@@ -36,6 +36,6 @@ Detailed changes for each release are documented in the [release notes](./Change
 
 ## License
 
-[Apache-2.0](./LICENSE)
+[Apache-2.0](https://github.com/aliyun/alibabacloud-file-detect-python-sdk/blob/master/LICENSE)
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.

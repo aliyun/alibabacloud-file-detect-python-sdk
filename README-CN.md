@@ -29,7 +29,7 @@ pip install alibabacloud_filedetect
 
 ## 发行说明
 
-每个版本的详细更改记录在[发行说明](./ChangeLog.md)中。
+每个版本的详细更改记录在[发行说明](https://github.com/aliyun/alibabacloud-file-detect-python-sdk/blob/master/ChangeLog.md)中。
 
 ## 相关
 
@@ -37,6 +37,6 @@ pip install alibabacloud_filedetect
 
 ## 许可证
 
-[Apache-2.0](./LICENSE)
+[Apache-2.0](https://github.com/aliyun/alibabacloud-file-detect-python-sdk/blob/master/LICENSE)
 
 Copyright (c) 2009-present, Alibaba Cloud All rights reserved.

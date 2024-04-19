@@ -31,6 +31,7 @@ class DetectResult(object):
         self.score = 0 # 分值，取值范围0-100
         self.virus_type = None # 病毒类型，如“黑客工具”
         self.ext_info = None # 扩展信息为json字符串
+        self.compresslist = None
 
 
     # 检测结果是否完成，True: 可通过getDetectResultInfo查看结果; False: 可通过getErrorInfo获取错误信息
@@ -64,6 +65,7 @@ class DetectResult(object):
         info.time = self.time
         info.result = self.result
         info.score = self.score
+        info.compresslist = self.compresslist
         return info
 
           
@@ -95,9 +97,26 @@ class DetectResult(object):
             self.md5 = None # 样本md5
             self.time = 0 # 用时，单位为毫秒
             self.result = DetectResult.RESULT.RES_UNKNOWN # 检测结果
-            self.result = 2
             self.score = 0 # 分值，取值范围0-100
+            compresslist = None # 如果是压缩包，并且开启了压缩包解压参数，则此处会输出压缩包内文件检测结果
             self.__virusinfo = vinfo
-            
+        
+        # 获取病毒信息,如result为RES_BLACK，可通过此接口获取病毒信息
         def getVirusInfo(self):
-            return self.__virusinfo 
+            return self.__virusinfo
+    
+
+    class CompressFileDetectResultInfo(object):
+        def __init__(self, path=None):
+            self.path = path # 压缩文件路径
+            self.result = DetectResult.RESULT.RES_UNKNOWN # 检测结果
+            self.score = 0 # 分值，取值范围0-100
+            self.__virusinfo = None
+        
+        # 获取病毒信息,如result为RES_BLACK，可通过此接口获取病毒信息
+        def getVirusInfo(self):
+            return self.__virusinfo
+
+        def setVirusInfo(self, vinfo):
+            self.__virusinfo = vinfo
+        
