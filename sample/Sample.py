@@ -263,9 +263,34 @@ class Sample(object):
         # 获取检测器实例
         detector = OpenAPIDetector.get_instance()
 
-        # 初始化
-        init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>")
-        print("INIT RET: {}".format(init_ret.name))
+        # 设置全局配置，需要在初始化前调用（该操作可选，默认配置如下）
+        thread_pool_size = 64 # 线程池大小，默认为64
+        queue_size_max = 200 # 队列最大个数，默认为200
+        query_result_interval = 100 # 查询检测结果间隔时间，单位为毫秒，默认为100，避免qps过高
+        request_too_frequently_sleep_time = 100 # 单样本请求太过频繁时，需要休眠时间，单位为毫秒，默认为100
+        http_connect_timeout = 6000 # 与服务器的网络连接超时时间，单位为毫秒，默认为6000
+        http_read_timeout = 6000 # 建立连接后，等待服务器响应的超时时间，单位为毫秒，默认为6000
+        http_upload_timeout = 60000 # 上传文件超时时间，单位为毫秒，默认为60000
+        # 该函数的所有参数均为可选参数，可通过key=value的形式设置部分参数，以下示例为设置全部参数
+        initcon_ret = detector.initConfig(
+            thread_pool_size=thread_pool_size, 
+            queue_size_max=queue_size_max, 
+            query_result_interval=query_result_interval,
+            request_too_frequently_sleep_time=request_too_frequently_sleep_time,
+            http_connect_timeout=http_connect_timeout,
+            http_read_timeout=http_read_timeout,
+            http_upload_timeout=http_upload_timeout)
+        print("INIT_CONFIG RET: {}".format(initcon_ret.name))
+
+        # 初始化，初始化给出两种示例，使用时根据实际情况按需选择其中一种方式初始化
+        if True:
+            # 初始化示例1，可通过AccessKey ID和AccessKey Secret的方式接入，第3个参数regionId为可用区ID（例如cn-shanghai），该参数为可选参数，可省略
+            init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", regionId="<your regionId>")
+            print("INIT RET: {}".format(init_ret.name))
+        else:
+            # 初始化示例2，可通过阿里云STS Token方式接入，第4个参数regionId为可用区ID（例如cn-shanghai），该参数是可选参数，可省略
+            init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", "<Security Token>", regionId="<Your regionId>")
+            print("INIT RET: {}".format(init_ret.name))
 
         # 设置解压缩参数(可选，默认不解压压缩包)
         decompress = True # 是否识别压缩文件并解压，默认为false

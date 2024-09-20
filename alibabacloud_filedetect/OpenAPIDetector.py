@@ -54,6 +54,7 @@ class OpenAPIDetector(TaskCallback):
         self.__counter = 0
         self.__rej_handler = None
         self.__decompress = None
+        self.__config = Config()
         self.__alive_task_num = 0
 
         self.sync_obj = SyncObject()
@@ -63,18 +64,31 @@ class OpenAPIDetector(TaskCallback):
     检测器初始化
     @param accessKeyId
     @param accessKeySecret
+    @param securityToken 可选
+    @param region 可选
     @return
     """
-    def init(self, accessKeyId, accessKeySecret):
+    def init(self, accessKeyId, accessKeySecret, securityToken=None, regionId="cn-shanghai"):
         if self.is_inited:
             return ERR_CODE.ERR_INIT
         
-        config = open_api_models.Config(accessKeyId, accessKeySecret)
-        config.endpoint = "tds.aliyuncs.com"
-        self.client = Sas20181203Client(config)
+        if securityToken is None:
+            openapi_config = open_api_models.Config(accessKeyId, accessKeySecret)
+        else:
+            openapi_config = open_api_models.Config(accessKeyId, accessKeySecret, securityToken)
+        
+        openapi_config.endpoint = "tds.aliyuncs.com"
+        if "-" in regionId:
+            if regionId.startswith("cn-"):
+                openapi_config.endpoint = "tds.aliyuncs.com"
+            else:
+                openapi_config.endpoint = "tds.ap-southeast-1.aliyuncs.com"
+
+        self.client = Sas20181203Client(openapi_config)
         self.client_opt = util_models.RuntimeOptions()
-        self.client_opt.connectTimeout = Config.HTTP_CONNECT_TIMEOUT
-        self.client_opt.readTimeout = Config.HTTP_READ_TIMEOUT  
+        self.client_opt.connectTimeout = self.__config.HTTP_CONNECT_TIMEOUT
+        
+        self.client_opt.readTimeout = self.__config.HTTP_READ_TIMEOUT
 
         class TaskRejectedExecutionHandler(RejectedExecutionHandler):
             def rejectedExecution(self, r, executor):
@@ -83,7 +97,7 @@ class OpenAPIDetector(TaskCallback):
         self.__rej_handler = TaskRejectedExecutionHandler()
         
         self.queue = BlockingDeque()
-        self.__threadpool = MiniThreadPoolExecutor(self.queue, Config.THREAD_POOL_SIZE)
+        self.__threadpool = MiniThreadPoolExecutor(self.queue, self.__config.THREAD_POOL_SIZE)
         self.__threadpool.prestartAllThreads()
         self.__threadpool.setRejectedExecutionHandler(self.__rej_handler)
         
@@ -108,6 +122,38 @@ class OpenAPIDetector(TaskCallback):
             self.client = None
             self.client_opt = None
     
+    """
+    初始化全局配置参数
+    @param thread_pool_size 线程池大小，可选
+    @param queue_size_max 查询检测结果间隔时间，单位为毫秒，可选
+    @param request_too_frequently_sleep_time 单样本请求太过频繁时，需要休眠时间，单位为毫秒，可选
+    @param http_connect_timeout 建立连接后，等待服务器响应的超时时间，单位为毫秒，可选
+    @param http_read_timeout 建立连接后，等待服务器响应的超时时间，单位为毫秒，可选
+    @param http_upload_timeout 上传文件超时时间，单位为毫秒，可选
+    """
+    def initConfig(
+            self, 
+            thread_pool_size = 64, 
+            queue_size_max = 200, 
+            query_result_interval = 100,      
+            request_too_frequently_sleep_time = 100,
+            http_connect_timeout = 6000,
+            http_read_timeout = 6000, 
+            http_upload_timeout = 60000
+        ):
+        if self.is_inited is True:
+            return ERR_CODE.ERR_INIT
+        self.__config = Config(
+            thread_pool_size = thread_pool_size,
+            queue_size_max = queue_size_max,
+            query_result_interval = query_result_interval,
+            request_too_frequently_sleep_time = request_too_frequently_sleep_time,
+            http_connect_timeout = http_connect_timeout,
+            http_read_timeout = http_read_timeout,
+            http_upload_timeout = http_upload_timeout
+        )
+        return ERR_CODE.ERR_SUCC
+
     """
     初始化解压缩配置参数
     @param open 是否识别压缩文件并解压
@@ -177,7 +223,7 @@ class OpenAPIDetector(TaskCallback):
     def detect(self, file_path, timeout, callback):
         file_size = self.__get_filesize(file_path)
         task = ScanTask()
-        task.initScanFile(file_path, file_size, timeout, callback, self.__decompress)
+        task.initScanFile(file_path, file_size, timeout, callback, self.__decompress, self.__config)
         if file_size < 0:
             task.errorCallback(ERR_CODE.ERR_FILE_NOT_FOUND, file_path)
             return ERR_CODE.ERR_FILE_NOT_FOUND.value
@@ -197,7 +243,7 @@ class OpenAPIDetector(TaskCallback):
             # 转小写
             md5 = md5.lower()
         task = ScanTask()
-        task.initScanUrl(url, md5, timeout, callback, self.__decompress)
+        task.initScanUrl(url, md5, timeout, callback, self.__decompress, self.__config)
         if md5 is None or len(md5) != 32 or re.match(r'^[a-f0-9]{32}$', md5) is None:
             task.errorCallback(ERR_CODE.ERR_MD5, md5)
             return ERR_CODE.ERR_MD5.value
@@ -220,7 +266,7 @@ class OpenAPIDetector(TaskCallback):
                         self.__counter += 1
                         self.__check_counter()
                         task.setSeq(self.__counter)
-                        if self.getQueueSize() >= Config.QUEUE_SIZE_MAX:
+                        if self.getQueueSize() >= self.__config.QUEUE_SIZE_MAX:
                             raise RuntimeError("Deque full")
                         task.setTaskCallback(self)
                         self.queue.addLast(task)
@@ -258,7 +304,7 @@ class OpenAPIDetector(TaskCallback):
         code = ERR_CODE.ERR_TIMEOUT
         all_time = 0
         while True:
-            if self.getQueueSize() < Config.QUEUE_SIZE_MAX:
+            if self.getQueueSize() < self.__config.QUEUE_SIZE_MAX:
                 code = ERR_CODE.ERR_SUCC
                 break
             

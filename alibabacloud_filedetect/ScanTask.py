@@ -11,7 +11,6 @@ from alibabacloud_sas20181203 import models as sas_20181203_models
 
 from .DetectResult import DetectResult
 from .ERR_CODE import ERR_CODE
-from .Config import Config
 from .MiniThreadPool import Runnable
 
 
@@ -54,7 +53,7 @@ class ScanTask(Runnable):
         return int(round(time.time() * 1000))
 
 
-    def initScanFile(self, file_path, size, timeout, callback, decompress):
+    def initScanFile(self, file_path, size, timeout, callback, decompress, config):
         self.__islocal = True
         self.__path = file_path
         self.__size = size
@@ -62,9 +61,10 @@ class ScanTask(Runnable):
         self.__callback = callback
         self.__start_time = self.__currentTimeMillis()
         self.__decompress = decompress
+        self.__config = config
 
 
-    def initScanUrl(self, url, md5, timeout, callback, decompress):
+    def initScanUrl(self, url, md5, timeout, callback, decompress, config):
         self.__islocal = False
         self.__path = url
         self.__result.md5 = md5
@@ -72,6 +72,7 @@ class ScanTask(Runnable):
         self.__callback = callback
         self.__start_time = self.__currentTimeMillis()
         self.__decompress = decompress
+        self.__config = config
 
     
     def setSeq(self, seq):
@@ -116,10 +117,10 @@ class ScanTask(Runnable):
         
 
         # 如果距离上次查询过短，则需要等待一会
-        if self.__currentTimeMillis() - self.__last_time < Config.QUERY_RESULT_INTERVAL:
+        if self.__currentTimeMillis() - self.__last_time < self.__config.QUERY_RESULT_INTERVAL:
             with queue:
-                queue.wait(Config.QUERY_RESULT_INTERVAL/1000.0)
-            if self.__currentTimeMillis() - self.__last_time < Config.QUERY_RESULT_INTERVAL:
+                queue.wait(self.__config.QUERY_RESULT_INTERVAL/1000.0)
+            if self.__currentTimeMillis() - self.__last_time < self.__config.QUERY_RESULT_INTERVAL:
                 # 时间不够就放到队列里去
                 queue.addLast(self)
                 return
@@ -133,7 +134,7 @@ class ScanTask(Runnable):
             result_info = self.__getResultByAPI(client, client_opt, self.__result.md5)
             if result_info.result != self.REQUEST_TOO_FREQUENTLY:
                 break
-            self.__needSleep(Config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
+            self.__needSleep(self.__config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
             # 判断是否已超时
             if self.__checkTimeout():
                 return
@@ -148,7 +149,7 @@ class ScanTask(Runnable):
                 if detect_ret != self.REQUEST_TOO_FREQUENTLY:
                     break
                 
-                self.__needSleep(Config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
+                self.__needSleep(self.__config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
                 if self.__checkTimeout():
                     return
 
@@ -291,7 +292,7 @@ class ScanTask(Runnable):
         while True:
             ret_code = self.__getListCompressFileResultByAPI(client, client_opt, md5, cur_page, page_size)
             if ret_code == self.REQUEST_TOO_FREQUENTLY:
-                self.__needSleep(Config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
+                self.__needSleep(self.__config.REQUEST_TOO_FREQUENTLY_SLEEP_TIME) # 请求太过频繁，需要休眠
                 continue
             elif ret_code == self.HAS_EXCEPTION:
                 break # 报错退出
