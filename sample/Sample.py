@@ -282,14 +282,31 @@ class Sample(object):
             http_upload_timeout=http_upload_timeout)
         print("INIT_CONFIG RET: {}".format(initcon_ret.name))
 
-        # 初始化，初始化给出两种示例，使用时根据实际情况按需选择其中一种方式初始化
-        if True:
-            # 初始化示例1，可通过AccessKey ID和AccessKey Secret的方式接入，第3个参数regionId为可用区ID（例如cn-shanghai），该参数为可选参数，可省略
+        # 初始化，初始化给出三种示例，使用时根据实际情况按需选择其中一种方式初始化
+        INIT_MODE = 1
+        if INIT_MODE == 1:
+            # 初始化示例1，通过AccessKey ID和AccessKey Secret的方式接入，通过regionId指定endpoint
+            # 参数1: AccessKey ID
+            # 参数2: AccessKey Secret
+            # 参数3: regionId为可用区ID，可选参数，默认为cn-shanghai，可通过该参数间接指定endpoint，但支持区域有限
             init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", regionId="<your regionId>")
             print("INIT RET: {}".format(init_ret.name))
+        elif INIT_MODE == 2:
+            # 初始化示例2，通过AccessKey ID和AccessKey Secret的方式接入，直接设置endpoint
+            # 参数1: AccessKey ID
+            # 参数2: AccessKey Secret
+            # 参数3: regionId为可用区ID，可选参数，默认为cn-shanghai
+            # 可选参数: endpoint为服务接入点，默认为None，可通过该参数直接指定endpoint
+            init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", regionId="<your regionId>", endpoint="<your endpoint>")
+            print("INIT RET: {}".format(init_ret.name))
         else:
-            # 初始化示例2，可通过阿里云STS Token方式接入，第4个参数regionId为可用区ID（例如cn-shanghai），该参数是可选参数，可省略
-            init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", "<Security Token>", regionId="<Your regionId>")
+            # 初始化示例3，通过阿里云STS Token方式接入，直接设置endpoint
+            # 参数1: AccessKey ID
+            # 参数2: AccessKey Secret
+            # 参数3: Security Token
+            # 参数4: regionId为可用区ID
+            # 参数5: endpoint为服务接入点，可通过该参数直接指定endpoint
+            init_ret = detector.init("<AccessKey ID>", "<AccessKey Secret>", securityToken="<Security Token>", regionId="<Your regionId>", endpoint="<your endpoint>")
             print("INIT RET: {}".format(init_ret.name))
 
         # 设置解压缩参数(可选，默认不解压压缩包)

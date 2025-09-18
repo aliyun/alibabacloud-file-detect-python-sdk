@@ -39,7 +39,7 @@ VERSION = __import__(PACKAGE).__version__
 REQUIRES = [
     "alibabacloud_sas20181203>=2.28.0",
     "alibabacloud_tea_util>=0.3.5, <1.0.0",
-    "alibabacloud_tea_openapi>=0.3.3, <1.0.0",
+    "alibabacloud_tea_openapi>=0.3.3, <=0.3.12",
     "requests"
 
 ]

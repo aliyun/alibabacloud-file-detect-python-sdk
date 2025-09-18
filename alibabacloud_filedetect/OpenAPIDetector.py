@@ -65,10 +65,11 @@ class OpenAPIDetector(TaskCallback):
     @param accessKeyId
     @param accessKeySecret
     @param securityToken 可选
-    @param region 可选
+    @param regionId 可选
+    @param endpoint 可选
     @return
     """
-    def init(self, accessKeyId, accessKeySecret, securityToken=None, regionId="cn-shanghai"):
+    def init(self, accessKeyId, accessKeySecret, securityToken=None, regionId="cn-shanghai", endpoint=None):
         if self.is_inited:
             return ERR_CODE.ERR_INIT
         
@@ -77,13 +78,17 @@ class OpenAPIDetector(TaskCallback):
         else:
             openapi_config = open_api_models.Config(accessKeyId, accessKeySecret, securityToken)
         
-        openapi_config.endpoint = "tds.aliyuncs.com"
-        if "-" in regionId:
-            if regionId.startswith("cn-"):
-                openapi_config.endpoint = "tds.aliyuncs.com"
+        if endpoint is not None:
+            openapi_config.endpoint = endpoint
+        else:
+            if "-" in regionId:
+                if regionId.startswith("cn-"):
+                    openapi_config.endpoint = "tds.aliyuncs.com"
+                else:
+                    openapi_config.endpoint = "tds.ap-southeast-1.aliyuncs.com"
             else:
-                openapi_config.endpoint = "tds.ap-southeast-1.aliyuncs.com"
-
+                openapi_config.endpoint = "tds.aliyuncs.com"
+        
         self.client = Sas20181203Client(openapi_config)
         self.client_opt = util_models.RuntimeOptions()
         self.client_opt.connectTimeout = self.__config.HTTP_CONNECT_TIMEOUT
@@ -106,7 +111,6 @@ class OpenAPIDetector(TaskCallback):
         self.is_inited = True
         return ERR_CODE.ERR_SUCC
     
-
     # 检测器反初始化
     def uninit(self):
         if self.is_inited is False:
