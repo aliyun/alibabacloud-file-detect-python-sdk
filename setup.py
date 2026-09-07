@@ -37,9 +37,16 @@ AUTHOR_EMAIL = "sdk-team@alibabacloud.com"
 URL = "https://github.com/aliyun/alibabacloud-file-detect-python-sdk"
 VERSION = __import__(PACKAGE).__version__
 REQUIRES = [
-    "alibabacloud_sas20181203>=2.28.0",
+    # Relaxing tea-openapi moves the resolved SAS client from 4.5.3 to 10.1.2, which is generated on
+    # darabonba-core instead of alibabacloud_tea. This release is tested against 10.1.2; the cap keeps
+    # a future major from swapping the stack out silently. Python 3.6 still resolves to 4.5.3.
+    "alibabacloud_sas20181203>=2.28.0, <11.0.0",
     "alibabacloud_tea_util>=0.3.5, <1.0.0",
-    "alibabacloud_tea_openapi>=0.3.3, <=0.3.12",
+    # 0.3.14 reads credential_model.provider_name yet still permits alibabacloud_credentials 0.3.x,
+    # which has no such attribute, so every API call fails with AttributeError even though dependency
+    # checks pass. Keep the previously supported versions available and exclude only that broken release;
+    # Python 3.6 will remain on 0.3.12 because newer releases require Python >=3.7.
+    "alibabacloud_tea_openapi>=0.3.3, !=0.3.14, <1.0.0",
     "requests"
 
 ]
@@ -75,6 +82,10 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
         'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11',
+        'Programming Language :: Python :: 3.12',
+        'Programming Language :: Python :: 3.13',
         "Topic :: Software Development"
     )
 )

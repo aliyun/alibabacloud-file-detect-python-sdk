@@ -90,10 +90,14 @@ class OpenAPIDetector(TaskCallback):
                 openapi_config.endpoint = "tds.aliyuncs.com"
         
         self.client = Sas20181203Client(openapi_config)
+        # tea_util's RuntimeOptions, not darabonba.runtime's. The alibabacloud_sas20181203 >=10
+        # releases type this parameter as darabonba.runtime.RuntimeOptions, but darabonba-core needs
+        # Python >=3.7 and would drop the 3.6 branch. Safe because the RPC path reads only attributes
+        # both classes define; darabonba's extra web_socket_handler is used solely for WebSocket calls.
         self.client_opt = util_models.RuntimeOptions()
-        self.client_opt.connectTimeout = self.__config.HTTP_CONNECT_TIMEOUT
+        self.client_opt.connect_timeout = self.__config.HTTP_CONNECT_TIMEOUT
         
-        self.client_opt.readTimeout = self.__config.HTTP_READ_TIMEOUT
+        self.client_opt.read_timeout = self.__config.HTTP_READ_TIMEOUT
 
         class TaskRejectedExecutionHandler(RejectedExecutionHandler):
             def rejectedExecution(self, r, executor):
@@ -142,7 +146,7 @@ class OpenAPIDetector(TaskCallback):
             query_result_interval = 100,      
             request_too_frequently_sleep_time = 100,
             http_connect_timeout = 6000,
-            http_read_timeout = 6000, 
+            http_read_timeout = 10000,
             http_upload_timeout = 60000
         ):
         if self.is_inited is True:

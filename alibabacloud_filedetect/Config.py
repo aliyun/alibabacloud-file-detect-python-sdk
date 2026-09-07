@@ -8,7 +8,7 @@ class Config(object):
             query_result_interval = 100,      
             request_too_frequently_sleep_time = 100,
             http_connect_timeout = 6000,
-            http_read_timeout = 6000, 
+            http_read_timeout = 10000,
             http_upload_timeout = 60000
         ):
         self.THREAD_POOL_SIZE = thread_pool_size # 线程池大小
